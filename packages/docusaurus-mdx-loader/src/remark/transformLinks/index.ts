@@ -12,27 +12,26 @@ import {
   toMessageRelativeFilePath,
   posixPath,
   escapePath,
-  getFileLoaderUtils,
   findAsyncSequential,
+  getFileLoaderUtils,
 } from '@docusaurus/utils';
-import visit from 'unist-util-visit';
 import escapeHtml from 'escape-html';
-import {stringifyContent} from '../utils';
-import type {Transformer} from 'unified';
+import {assetRequireAttributeValue, transformNode} from '../utils';
+// @ts-expect-error: TODO see https://github.com/microsoft/TypeScript/issues/49721
+import type {Plugin, Transformer} from 'unified';
+// @ts-expect-error: TODO see https://github.com/microsoft/TypeScript/issues/49721
+import type {MdxJsxTextElement} from 'mdast-util-mdx';
 import type {Parent} from 'unist';
-import type {Link, Literal} from 'mdast';
+import type {Link, Literal, Root} from 'mdast';
 
-const {
-  loaders: {inlineMarkdownLinkFileLoader},
-} = getFileLoaderUtils();
-
-export type PluginOptions = {
+type PluginOptions = {
   staticDirs: string[];
   siteDir: string;
 };
 
 type Context = PluginOptions & {
   filePath: string;
+  inlineMarkdownLinkFileLoader: string;
 };
 
 type Target = [node: Link, index: number, parent: Parent];
@@ -40,37 +39,89 @@ type Target = [node: Link, index: number, parent: Parent];
 /**
  * Transforms the link node to a JSX `<a>` element with a `require()` call.
  */
-function toAssetRequireNode(
-  [node, index, parent]: Target,
+async function toAssetRequireNode(
+  [node]: Target,
   assetPath: string,
-  filePath: string,
+  context: Context,
 ) {
+  // MdxJsxTextElement => see https://github.com/facebook/docusaurus/pull/8288#discussion_r1125871405
+  const jsxNode = node as unknown as MdxJsxTextElement;
+  const attributes: MdxJsxTextElement['attributes'] = [];
+
   // require("assets/file.pdf") means requiring from a package called assets
   const relativeAssetPath = `./${posixPath(
-    path.relative(path.dirname(filePath), assetPath),
+    path.relative(path.dirname(context.filePath), assetPath),
   )}`;
 
   const parsedUrl = url.parse(node.url);
   const hash = parsedUrl.hash ?? '';
   const search = parsedUrl.search ?? '';
 
-  const href = `require('${
+  const requireString = `${
     // A hack to stop Webpack from using its built-in loader to parse JSON
     path.extname(relativeAssetPath) === '.json'
       ? `${relativeAssetPath.replace('.json', '.raw')}!=`
       : ''
-  }${inlineMarkdownLinkFileLoader}${
+  }${context.inlineMarkdownLinkFileLoader}${
     escapePath(relativeAssetPath) + search
-  }').default${hash ? ` + '${hash}'` : ''}`;
-  const children = stringifyContent(node);
-  const title = node.title ? ` title="${escapeHtml(node.title)}"` : '';
+  }`;
 
-  const jsxNode: Literal = {
-    type: 'jsx',
-    value: `<a target="_blank" href={${href}}${title}>${children}</a>`,
-  };
+  attributes.push({
+    type: 'mdxJsxAttribute',
+    name: 'target',
+    value: '_blank',
+  });
 
-  parent.children.splice(index, 1, jsxNode);
+  // Assets are not routes, and are required by Webpack already
+  // They should not trigger the broken link checker
+  attributes.push({
+    type: 'mdxJsxAttribute',
+    name: 'data-noBrokenLinkCheck',
+    value: {
+      type: 'mdxJsxAttributeValueExpression',
+      value: 'true',
+      data: {
+        estree: {
+          type: 'Program',
+          body: [
+            {
+              type: 'ExpressionStatement',
+              expression: {
+                type: 'Literal',
+                value: true,
+                raw: 'true',
+              },
+            },
+          ],
+          sourceType: 'module',
+          comments: [],
+        },
+      },
+    },
+  });
+
+  attributes.push({
+    type: 'mdxJsxAttribute',
+    name: 'href',
+    value: assetRequireAttributeValue(requireString, hash),
+  });
+
+  if (node.title) {
+    attributes.push({
+      type: 'mdxJsxAttribute',
+      name: 'title',
+      value: escapeHtml(node.title),
+    });
+  }
+
+  const {children} = node;
+
+  transformNode(jsxNode, {
+    type: 'mdxJsxTextElement',
+    name: 'a',
+    attributes,
+    children,
+  });
 }
 
 async function ensureAssetFileExist(assetPath: string, sourceFilePath: string) {
@@ -144,21 +195,35 @@ async function processLinkNode(target: Target, context: Context) {
     context,
   );
   if (assetPath) {
-    toAssetRequireNode(target, assetPath, context.filePath);
+    await toAssetRequireNode(target, assetPath, context);
   }
 }
 
-export default function plugin(options: PluginOptions): Transformer {
+const plugin: Plugin<PluginOptions[], Root> = function plugin(
+  options,
+): Transformer<Root> {
   return async (root, vfile) => {
+    const {visit} = await import('unist-util-visit');
+
+    const fileLoaderUtils = getFileLoaderUtils(
+      vfile.data.compilerName === 'server',
+    );
+    const context: Context = {
+      ...options,
+      filePath: vfile.path!,
+      inlineMarkdownLinkFileLoader:
+        fileLoaderUtils.loaders.inlineMarkdownLinkFileLoader,
+    };
+
     const promises: Promise<void>[] = [];
-    visit(root, 'link', (node: Link, index, parent) => {
-      promises.push(
-        processLinkNode([node, index, parent!], {
-          ...options,
-          filePath: vfile.path!,
-        }),
-      );
+    visit(root, 'link', (node, index, parent) => {
+      if (!parent || index === undefined) {
+        return;
+      }
+      promises.push(processLinkNode([node, index, parent], context));
     });
     await Promise.all(promises);
   };
-}
+};
+
+export default plugin;

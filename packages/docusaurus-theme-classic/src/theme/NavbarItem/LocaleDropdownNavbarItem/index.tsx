@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React from 'react';
+import React, {type ReactNode} from 'react';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import {useAlternatePageUtils} from '@docusaurus/theme-common/internal';
 import {translate} from '@docusaurus/Translate';
@@ -21,8 +21,9 @@ export default function LocaleDropdownNavbarItem({
   mobile,
   dropdownItemsBefore,
   dropdownItemsAfter,
+  queryString = '',
   ...props
-}: Props): JSX.Element {
+}: Props): ReactNode {
   const {
     i18n: {currentLocale, locales, localeConfigs},
   } = useDocusaurusContext();
@@ -35,7 +36,7 @@ export default function LocaleDropdownNavbarItem({
       fullyQualified: false,
     })}`;
     // preserve ?search#hash suffix on locale switches
-    const to = `${baseTo}${search}${hash}`;
+    const to = `${baseTo}${search}${hash}${queryString}`;
     return {
       label: localeConfigs[locale]!.label,
       lang: localeConfigs[locale]!.htmlLang,

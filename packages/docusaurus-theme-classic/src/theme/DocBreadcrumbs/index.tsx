@@ -8,14 +8,11 @@
 import React, {type ReactNode} from 'react';
 import clsx from 'clsx';
 import {ThemeClassNames} from '@docusaurus/theme-common';
-import {
-  useSidebarBreadcrumbs,
-  useHomePageRoute,
-} from '@docusaurus/theme-common/internal';
+import {useSidebarBreadcrumbs} from '@docusaurus/plugin-content-docs/client';
+import {useHomePageRoute} from '@docusaurus/theme-common/internal';
 import Link from '@docusaurus/Link';
-import useBaseUrl from '@docusaurus/useBaseUrl';
 import {translate} from '@docusaurus/Translate';
-import IconHome from '@theme/Icon/Home';
+import HomeBreadcrumbItem from '@theme/DocBreadcrumbs/Items/Home';
 
 import styles from './styles.module.css';
 
@@ -28,7 +25,7 @@ function BreadcrumbsItemLink({
   children: ReactNode;
   href: string | undefined;
   isLast: boolean;
-}): JSX.Element {
+}): ReactNode {
   const className = 'breadcrumbs__link';
   if (isLast) {
     return (
@@ -62,7 +59,7 @@ function BreadcrumbsItem({
   active?: boolean;
   index: number;
   addMicrodata: boolean;
-}): JSX.Element {
+}): ReactNode {
   return (
     <li
       {...(addMicrodata && {
@@ -79,25 +76,7 @@ function BreadcrumbsItem({
   );
 }
 
-function HomeBreadcrumbItem() {
-  const homeHref = useBaseUrl('/');
-  return (
-    <li className="breadcrumbs__item">
-      <Link
-        aria-label={translate({
-          id: 'theme.docs.breadcrumbs.home',
-          message: 'Home page',
-          description: 'The ARIA label for the home page in the breadcrumbs',
-        })}
-        className={clsx('breadcrumbs__link', styles.breadcrumbsItemLink)}
-        href={homeHref}>
-        <IconHome className={styles.breadcrumbHomeIcon} />
-      </Link>
-    </li>
-  );
-}
-
-export default function DocBreadcrumbs(): JSX.Element | null {
+export default function DocBreadcrumbs(): ReactNode {
   const breadcrumbs = useSidebarBreadcrumbs();
   const homePageRoute = useHomePageRoute();
 
@@ -123,13 +102,17 @@ export default function DocBreadcrumbs(): JSX.Element | null {
         {homePageRoute && <HomeBreadcrumbItem />}
         {breadcrumbs.map((item, idx) => {
           const isLast = idx === breadcrumbs.length - 1;
+          const href =
+            item.type === 'category' && item.linkUnlisted
+              ? undefined
+              : item.href;
           return (
             <BreadcrumbsItem
               key={idx}
               active={isLast}
               index={idx}
-              addMicrodata={!!item.href}>
-              <BreadcrumbsItemLink href={item.href} isLast={isLast}>
+              addMicrodata={!!href}>
+              <BreadcrumbsItemLink href={href} isLast={isLast}>
                 {item.label}
               </BreadcrumbsItemLink>
             </BreadcrumbsItem>

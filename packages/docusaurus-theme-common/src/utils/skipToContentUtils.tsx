@@ -5,7 +5,12 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React, {useCallback, useRef, type ComponentProps} from 'react';
+import React, {
+  useCallback,
+  useRef,
+  type ComponentProps,
+  type ReactNode,
+} from 'react';
 import {useHistory} from '@docusaurus/router';
 import {translate} from '@docusaurus/Translate';
 import {useLocationChange} from './useLocationChange';
@@ -14,8 +19,11 @@ import {useLocationChange} from './useLocationChange';
  * The id of the element that should become focused on a page
  * that does not have a <main> html tag.
  * Focusing the Docusaurus Layout children is a reasonable fallback.
+ *
+ * __ prefix allows search crawlers (Algolia/DocSearch) to ignore anchors
+ * https://github.com/facebook/docusaurus/issues/8883#issuecomment-1516328368
  */
-export const SkipToContentFallbackId = 'docusaurus_skipToContent_fallback';
+export const SkipToContentFallbackId = '__docusaurus_skipToContent_fallback';
 
 /**
  * Returns the skip to content element to focus when the link is clicked.
@@ -82,7 +90,7 @@ const DefaultSkipToContentLabel = translate({
 
 type SkipToContentLinkProps = Omit<ComponentProps<'a'>, 'href' | 'onClick'>;
 
-export function SkipToContentLink(props: SkipToContentLinkProps): JSX.Element {
+export function SkipToContentLink(props: SkipToContentLinkProps): ReactNode {
   const linkLabel = props.children ?? DefaultSkipToContentLabel;
   const {containerRef, onClick} = useSkipToContent();
   return (
@@ -90,6 +98,7 @@ export function SkipToContentLink(props: SkipToContentLinkProps): JSX.Element {
       ref={containerRef}
       role="region"
       aria-label={DefaultSkipToContentLabel}>
+      {/* eslint-disable-next-line @docusaurus/no-html-links */}
       <a
         {...props}
         // Note this is a fallback href in case JS is disabled

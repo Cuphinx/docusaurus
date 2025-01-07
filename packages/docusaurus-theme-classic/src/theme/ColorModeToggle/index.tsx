@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React from 'react';
+import React, {type ReactNode} from 'react';
 import clsx from 'clsx';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import {translate} from '@docusaurus/Translate';
@@ -15,7 +15,12 @@ import type {Props} from '@theme/ColorModeToggle';
 
 import styles from './styles.module.css';
 
-function ColorModeToggle({className, value, onChange}: Props): JSX.Element {
+function ColorModeToggle({
+  className,
+  buttonClassName,
+  value,
+  onChange,
+}: Props): ReactNode {
   const isBrowser = useIsBrowser();
 
   const title = translate(
@@ -47,13 +52,15 @@ function ColorModeToggle({className, value, onChange}: Props): JSX.Element {
           'clean-btn',
           styles.toggleButton,
           !isBrowser && styles.toggleButtonDisabled,
+          buttonClassName,
         )}
         type="button"
         onClick={() => onChange(value === 'dark' ? 'light' : 'dark')}
         disabled={!isBrowser}
         title={title}
         aria-label={title}
-        aria-live="polite">
+        aria-live="polite"
+        aria-pressed={value === 'dark' ? 'true' : 'false'}>
         <IconLightMode
           className={clsx(styles.toggleIcon, styles.lightToggleIcon)}
         />

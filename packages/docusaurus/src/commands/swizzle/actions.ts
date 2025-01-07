@@ -56,7 +56,7 @@ export async function eject({
   const isDirectory = await isDir(fromPath);
   const globPattern = isDirectory
     ? // Do we really want to copy all components?
-      path.join(fromPath, '*')
+      path.join(fromPath, '**/*')
     : `${fromPath}.*`;
 
   const globPatternPosix = posixPath(globPattern);
@@ -67,6 +67,7 @@ export async function eject({
       // When ejecting JS components, we want to avoid emitting TS files
       // In particular the .d.ts files that theme build output contains
       typescript ? null : '**/*.{d.ts,ts,tsx}',
+      '**/{__fixtures__,__tests__}/*',
     ]),
   });
 
@@ -127,14 +128,14 @@ export async function wrap({
   const toPath = path.resolve(siteDir, THEME_PATH, wrapperFileName);
 
   const content = typescript
-    ? `import React from 'react';
+    ? `import React, {type ReactNode} from 'react';
 import ${componentName} from '@theme-${importType}/${themeComponentName}';
 import type ${componentName}Type from '@theme/${themeComponentName}';
 import type {WrapperProps} from '@docusaurus/types';
 
 type Props = WrapperProps<typeof ${componentName}Type>;
 
-export default function ${wrapperComponentName}(props: Props): JSX.Element {
+export default function ${wrapperComponentName}(props: Props): ReactNode {
   return (
     <>
       <${componentName} {...props} />

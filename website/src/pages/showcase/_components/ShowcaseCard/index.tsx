@@ -10,26 +10,28 @@ import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Translate from '@docusaurus/Translate';
 import Image from '@theme/IdealImage';
-import FavoriteIcon from '@site/src/components/svgIcons/FavoriteIcon';
-import {
-  Tags,
-  TagList,
-  type TagType,
-  type User,
-  type Tag,
-} from '@site/src/data/users';
+import {Tags, TagList, type TagType, type User} from '@site/src/data/users';
 import {sortBy} from '@site/src/utils/jsUtils';
-import Tooltip from '../ShowcaseTooltip';
+import Heading from '@theme/Heading';
+import FavoriteIcon from '../FavoriteIcon';
 import styles from './styles.module.css';
 
-const TagComp = React.forwardRef<HTMLLIElement, Tag>(
-  ({label, color, description}, ref) => (
-    <li ref={ref} className={styles.tag} title={description}>
+function TagItem({
+  label,
+  description,
+  color,
+}: {
+  label: string;
+  description: string;
+  color: string;
+}) {
+  return (
+    <li className={styles.tag} title={description}>
       <span className={styles.textLabel}>{label.toLowerCase()}</span>
       <span className={styles.colorLabel} style={{backgroundColor: color}} />
     </li>
-  ),
-);
+  );
+}
 
 function ShowcaseCardTag({tags}: {tags: TagType[]}) {
   const tagObjects = tags.map((tag) => ({tag, ...Tags[tag]}));
@@ -42,17 +44,7 @@ function ShowcaseCardTag({tags}: {tags: TagType[]}) {
   return (
     <>
       {tagObjectsSorted.map((tagObject, index) => {
-        const id = `showcase_card_tag_${tagObject.tag}`;
-
-        return (
-          <Tooltip
-            key={index}
-            text={tagObject.description}
-            anchorEl="#__docusaurus"
-            id={id}>
-            <TagComp key={index} {...tagObject} />
-          </Tooltip>
-        );
+        return <TagItem key={index} {...tagObject} />;
       })}
     </>
   );
@@ -61,6 +53,7 @@ function ShowcaseCardTag({tags}: {tags: TagType[]}) {
 function getCardImage(user: User): string {
   return (
     user.preview ??
+    // TODO make it configurable
     `https://slorber-api-screenshot.netlify.app/${encodeURIComponent(
       user.website,
     )}/showcase`
@@ -76,13 +69,13 @@ function ShowcaseCard({user}: {user: User}) {
       </div>
       <div className="card__body">
         <div className={clsx(styles.showcaseCardHeader)}>
-          <h4 className={styles.showcaseCardTitle}>
+          <Heading as="h4" className={styles.showcaseCardTitle}>
             <Link href={user.website} className={styles.showcaseCardLink}>
               {user.title}
             </Link>
-          </h4>
+          </Heading>
           {user.tags.includes('favorite') && (
-            <FavoriteIcon svgClass={styles.svgIconFavorite} size="small" />
+            <FavoriteIcon size="medium" style={{marginRight: '0.25rem'}} />
           )}
           {user.source && (
             <Link
