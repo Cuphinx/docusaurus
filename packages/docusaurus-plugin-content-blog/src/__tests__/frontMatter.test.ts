@@ -5,14 +5,14 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import escapeStringRegexp from 'escape-string-regexp';
+import {escapeRegexp} from '@docusaurus/utils';
 import {validateBlogPostFrontMatter} from '../frontMatter';
 import type {BlogPostFrontMatter} from '@docusaurus/plugin-content-blog';
 
 // TODO this abstraction reduce verbosity but it makes it harder to debug
 // It would be preferable to just expose helper methods
 function testField(params: {
-  fieldName: keyof BlogPostFrontMatter;
+  prefix: string;
   validFrontMatters: BlogPostFrontMatter[];
   convertibleFrontMatter?: [
     ConvertibleFrontMatter: {[key: string]: unknown},
@@ -23,7 +23,7 @@ function testField(params: {
     ErrorMessage: string,
   ][];
 }) {
-  describe(`"${params.fieldName}" field`, () => {
+  describe(`"${params.prefix}" field`, () => {
     it('accept valid values', () => {
       params.validFrontMatters.forEach((frontMatter) => {
         expect(validateBlogPostFrontMatter(frontMatter)).toEqual(frontMatter);
@@ -44,20 +44,17 @@ function testField(params: {
       params.invalidFrontMatters?.forEach(([frontMatter, message]) => {
         try {
           validateBlogPostFrontMatter(frontMatter);
-          // eslint-disable-next-line jest/no-jasmine-globals
-          fail(
-            new Error(
-              `Blog front matter is expected to be rejected, but was accepted successfully:\n ${JSON.stringify(
-                frontMatter,
-                null,
-                2,
-              )}`,
-            ),
+          throw new Error(
+            `Blog front matter is expected to be rejected, but was accepted successfully:\n ${JSON.stringify(
+              frontMatter,
+              null,
+              2,
+            )}`,
           );
         } catch (err) {
           // eslint-disable-next-line jest/no-conditional-expect
           expect((err as Error).message).toMatch(
-            new RegExp(escapeStringRegexp(message)),
+            new RegExp(escapeRegexp(message)),
           );
         }
       });
@@ -79,9 +76,10 @@ describe('validateBlogPostFrontMatter', () => {
 
 describe('validateBlogPostFrontMatter description', () => {
   testField({
-    fieldName: 'description',
+    prefix: 'description',
     validFrontMatters: [
       // See https://github.com/facebook/docusaurus/issues/4591#issuecomment-822372398
+      {description: undefined},
       {description: ''},
       {description: 'description'},
     ],
@@ -90,18 +88,53 @@ describe('validateBlogPostFrontMatter description', () => {
 
 describe('validateBlogPostFrontMatter title', () => {
   testField({
-    fieldName: 'title',
+    prefix: 'title',
     validFrontMatters: [
       // See https://github.com/facebook/docusaurus/issues/4591#issuecomment-822372398
+      {title: undefined},
       {title: ''},
       {title: 'title'},
+    ],
+    invalidFrontMatters: [
+      [{title: null}, 'must be a string'],
+      [{title: false}, 'must be a string'],
+    ],
+  });
+});
+
+describe('validateBlogPostFrontMatter title_meta', () => {
+  testField({
+    prefix: 'title_meta',
+    validFrontMatters: [
+      {title_meta: undefined},
+      {title_meta: ''},
+      {title_meta: 'title'},
+    ],
+    invalidFrontMatters: [
+      [{title_meta: null}, 'must be a string'],
+      [{title_meta: false}, 'must be a string'],
+    ],
+  });
+});
+
+describe('validateBlogPostFrontMatter sidebar_label', () => {
+  testField({
+    prefix: 'title_meta',
+    validFrontMatters: [
+      {sidebar_label: undefined},
+      {sidebar_label: ''},
+      {sidebar_label: 'title'},
+    ],
+    invalidFrontMatters: [
+      [{sidebar_label: null}, 'must be a string'],
+      [{sidebar_label: false}, 'must be a string'],
     ],
   });
 });
 
 describe('validateBlogPostFrontMatter id', () => {
   testField({
-    fieldName: 'id',
+    prefix: 'id',
     validFrontMatters: [{id: '123'}, {id: 'id'}],
     invalidFrontMatters: [[{id: ''}, 'not allowed to be empty']],
   });
@@ -132,7 +165,7 @@ describe('validateBlogPostFrontMatter handles legacy/new author front matter', (
 
 describe('validateBlogPostFrontMatter author', () => {
   testField({
-    fieldName: 'author',
+    prefix: 'author',
     validFrontMatters: [{author: '123'}, {author: 'author'}],
     invalidFrontMatters: [[{author: ''}, 'not allowed to be empty']],
   });
@@ -140,7 +173,7 @@ describe('validateBlogPostFrontMatter author', () => {
 
 describe('validateBlogPostFrontMatter author_title', () => {
   testField({
-    fieldName: 'author_title',
+    prefix: 'author_title',
     validFrontMatters: [
       {author: '123', author_title: '123'},
       {author: '123', author_title: 'author_title'},
@@ -149,7 +182,7 @@ describe('validateBlogPostFrontMatter author_title', () => {
   });
 
   testField({
-    fieldName: 'authorTitle',
+    prefix: 'authorTitle',
     validFrontMatters: [{authorTitle: '123'}, {authorTitle: 'authorTitle'}],
     invalidFrontMatters: [[{authorTitle: ''}, 'not allowed to be empty']],
   });
@@ -157,7 +190,7 @@ describe('validateBlogPostFrontMatter author_title', () => {
 
 describe('validateBlogPostFrontMatter author_url', () => {
   testField({
-    fieldName: 'author_url',
+    prefix: 'author_url',
     validFrontMatters: [
       {author_url: 'https://docusaurus.io'},
       {author_url: '../../relative'},
@@ -172,7 +205,7 @@ describe('validateBlogPostFrontMatter author_url', () => {
   });
 
   testField({
-    fieldName: 'authorURL',
+    prefix: 'authorURL',
     validFrontMatters: [
       {authorURL: 'https://docusaurus.io'},
       {authorURL: '../../relative'},
@@ -190,7 +223,7 @@ describe('validateBlogPostFrontMatter author_url', () => {
 
 describe('validateBlogPostFrontMatter author_image_url', () => {
   testField({
-    fieldName: 'author_image_url',
+    prefix: 'author_image_url',
     validFrontMatters: [
       {author_image_url: 'https://docusaurus.io/asset/image.png'},
       {author_image_url: '../../relative'},
@@ -205,7 +238,7 @@ describe('validateBlogPostFrontMatter author_image_url', () => {
   });
 
   testField({
-    fieldName: 'authorImageURL',
+    prefix: 'authorImageURL',
     validFrontMatters: [
       {authorImageURL: 'https://docusaurus.io/asset/image.png'},
       {authorImageURL: '../../relative'},
@@ -222,7 +255,7 @@ describe('validateBlogPostFrontMatter author_image_url', () => {
 
 describe('validateBlogPostFrontMatter authors', () => {
   testField({
-    fieldName: 'author',
+    prefix: 'author',
     validFrontMatters: [
       {authors: []},
       {authors: 'authorKey'},
@@ -270,7 +303,7 @@ describe('validateBlogPostFrontMatter authors', () => {
 
 describe('validateBlogPostFrontMatter slug', () => {
   testField({
-    fieldName: 'slug',
+    prefix: 'slug',
     validFrontMatters: [
       {slug: 'blog/'},
       {slug: '/blog'},
@@ -287,7 +320,7 @@ describe('validateBlogPostFrontMatter slug', () => {
 
 describe('validateBlogPostFrontMatter image', () => {
   testField({
-    fieldName: 'image',
+    prefix: 'image',
     validFrontMatters: [
       {image: 'https://docusaurus.io/image.png'},
       {image: 'blog/'},
@@ -307,7 +340,7 @@ describe('validateBlogPostFrontMatter image', () => {
 
 describe('validateBlogPostFrontMatter tags', () => {
   testField({
-    fieldName: 'tags',
+    prefix: 'tags',
     validFrontMatters: [
       {tags: []},
       {tags: ['hello']},
@@ -335,7 +368,7 @@ describe('validateBlogPostFrontMatter tags', () => {
 
 describe('validateBlogPostFrontMatter keywords', () => {
   testField({
-    fieldName: 'keywords',
+    prefix: 'keywords',
     validFrontMatters: [
       {keywords: ['hello']},
       {keywords: ['hello', 'world']},
@@ -352,7 +385,7 @@ describe('validateBlogPostFrontMatter keywords', () => {
 
 describe('validateBlogPostFrontMatter draft', () => {
   testField({
-    fieldName: 'draft',
+    prefix: 'draft',
     validFrontMatters: [{draft: true}, {draft: false}],
     convertibleFrontMatter: [
       [{draft: 'true'}, {draft: true}],
@@ -365,9 +398,43 @@ describe('validateBlogPostFrontMatter draft', () => {
   });
 });
 
+describe('validateBlogPostFrontMatter unlisted', () => {
+  testField({
+    prefix: 'unlisted',
+    validFrontMatters: [{unlisted: true}, {unlisted: false}],
+    convertibleFrontMatter: [
+      [{unlisted: 'true'}, {unlisted: true}],
+      [{unlisted: 'false'}, {unlisted: false}],
+    ],
+    invalidFrontMatters: [
+      [{unlisted: 'yes'}, 'must be a boolean'],
+      [{unlisted: 'no'}, 'must be a boolean'],
+    ],
+  });
+});
+
+describe('validateDocFrontMatter draft XOR unlisted', () => {
+  testField({
+    prefix: 'draft XOR unlisted',
+    validFrontMatters: [
+      {draft: false},
+      {unlisted: false},
+      {draft: false, unlisted: false},
+      {draft: true, unlisted: false},
+      {draft: false, unlisted: true},
+    ],
+    invalidFrontMatters: [
+      [
+        {draft: true, unlisted: true},
+        "Can't be draft and unlisted at the same time.",
+      ],
+    ],
+  });
+});
+
 describe('validateBlogPostFrontMatter hide_table_of_contents', () => {
   testField({
-    fieldName: 'hide_table_of_contents',
+    prefix: 'hide_table_of_contents',
     validFrontMatters: [
       {hide_table_of_contents: true},
       {hide_table_of_contents: false},
@@ -385,7 +452,7 @@ describe('validateBlogPostFrontMatter hide_table_of_contents', () => {
 
 describe('validateBlogPostFrontMatter date', () => {
   testField({
-    fieldName: 'date',
+    prefix: 'date',
     validFrontMatters: [
       {date: new Date('2020-01-01')},
       {date: '2020-01-01'},

@@ -5,21 +5,21 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React from 'react';
+import React, {type ReactNode} from 'react';
 import clsx from 'clsx';
 import {
-  useCurrentSidebarCategory,
+  useCurrentSidebarSiblings,
   filterDocCardListItems,
-} from '@docusaurus/theme-common';
+} from '@docusaurus/plugin-content-docs/client';
 import DocCard from '@theme/DocCard';
 import type {Props} from '@theme/DocCardList';
 
 function DocCardListForCurrentSidebarCategory({className}: Props) {
-  const category = useCurrentSidebarCategory();
-  return <DocCardList items={category.items} className={className} />;
+  const items = useCurrentSidebarSiblings();
+  return <DocCardList items={items} className={className} />;
 }
 
-export default function DocCardList(props: Props): JSX.Element {
+export default function DocCardList(props: Props): ReactNode {
   const {items, className} = props;
   if (!items) {
     return <DocCardListForCurrentSidebarCategory {...props} />;

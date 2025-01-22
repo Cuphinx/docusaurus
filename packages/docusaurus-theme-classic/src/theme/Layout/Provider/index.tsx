@@ -5,29 +5,27 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React from 'react';
+import React, {type ReactNode} from 'react';
 import {composeProviders} from '@docusaurus/theme-common';
 import {
   ColorModeProvider,
-  TabGroupChoiceProvider,
   AnnouncementBarProvider,
-  DocsPreferredVersionContextProvider,
   ScrollControllerProvider,
   NavbarProvider,
   PluginHtmlClassNameProvider,
 } from '@docusaurus/theme-common/internal';
+import {DocsPreferredVersionContextProvider} from '@docusaurus/plugin-content-docs/client';
 import type {Props} from '@theme/Layout/Provider';
 
 const Provider = composeProviders([
   ColorModeProvider,
   AnnouncementBarProvider,
-  TabGroupChoiceProvider,
   ScrollControllerProvider,
   DocsPreferredVersionContextProvider,
   PluginHtmlClassNameProvider,
   NavbarProvider,
 ]);
 
-export default function LayoutProvider({children}: Props): JSX.Element {
+export default function LayoutProvider({children}: Props): ReactNode {
   return <Provider>{children}</Provider>;
 }

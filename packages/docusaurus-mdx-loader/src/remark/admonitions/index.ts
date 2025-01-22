@@ -4,25 +4,19 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+// @ts-expect-error: TODO see https://github.com/microsoft/TypeScript/issues/49721
+import type {Transformer, Plugin} from 'unified';
 
-import visit from 'unist-util-visit';
-import type {Transformer, Processor, Plugin} from 'unified';
-import type {Literal} from 'mdast';
+// @ts-expect-error: TODO see https://github.com/microsoft/TypeScript/issues/49721
+import type {ContainerDirective} from 'mdast-util-directive';
+import type {Parent, Root} from 'mdast';
 
-const NEWLINE = '\n';
-
-// TODO not ideal option shape
-// First let upgrade to MDX 2.0
-// Maybe we'll want to provide different tags for different admonition types?
-// Also maybe rename "keywords" to "types"?
 export type AdmonitionOptions = {
-  tag: string;
   keywords: string[];
   extendDefaults: boolean;
 };
 
 export const DefaultAdmonitionOptions: AdmonitionOptions = {
-  tag: ':::',
   keywords: [
     'secondary',
     'info',
@@ -34,16 +28,16 @@ export const DefaultAdmonitionOptions: AdmonitionOptions = {
     'important',
     'caution',
   ],
-  extendDefaults: false, // TODO make it true by default: breaking change
+  extendDefaults: true,
 };
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[-[\]{}()*+?.\\^$|/]/g, '\\$&');
-}
-
-function normalizeOptions(
-  providedOptions: Partial<AdmonitionOptions>,
+export function normalizeAdmonitionOptions(
+  providedOptions: Partial<AdmonitionOptions> | true,
 ): AdmonitionOptions {
+  if (providedOptions === true) {
+    return DefaultAdmonitionOptions;
+  }
+
   const options = {...DefaultAdmonitionOptions, ...providedOptions};
 
   // By default it makes more sense to append keywords to the default ones
@@ -58,145 +52,86 @@ function normalizeOptions(
   return options;
 }
 
-// This string value does not matter much
-// It is ignored because nodes are using hName/hProperties coming from HAST
-const admonitionNodeType = 'admonitionHTML';
+type DirectiveLabel = Parent;
+type DirectiveContent = ContainerDirective['children'];
 
-const plugin: Plugin = function plugin(
-  this: Processor,
-  optionsInput: Partial<AdmonitionOptions> = {},
-): Transformer {
-  const options = normalizeOptions(optionsInput);
+function parseDirective(directive: ContainerDirective): {
+  directiveLabel: DirectiveLabel | undefined;
+  contentNodes: DirectiveContent;
+} {
+  const hasDirectiveLabel =
+    // @ts-expect-error: fine
+    directive.children?.[0]?.data?.directiveLabel === true;
+  if (hasDirectiveLabel) {
+    const [directiveLabel, ...contentNodes] = directive.children;
+    return {directiveLabel: directiveLabel as DirectiveLabel, contentNodes};
+  }
+  return {directiveLabel: undefined, contentNodes: directive.children};
+}
 
-  const keywords = Object.values(options.keywords).map(escapeRegExp).join('|');
-  const tag = escapeRegExp(options.tag);
-  const regex = new RegExp(`${tag}(${keywords})(?: *(.*))?\n`);
-  const escapeTag = new RegExp(escapeRegExp(`\\${options.tag}`), 'g');
+function getTextOnlyTitle(directiveLabel: DirectiveLabel): string | undefined {
+  const isTextOnlyTitle =
+    directiveLabel?.children?.length === 1 &&
+    directiveLabel?.children?.[0]?.type === 'text';
+  return isTextOnlyTitle
+    ? // @ts-expect-error: todo type
+      (directiveLabel?.children?.[0].value as string)
+    : undefined;
+}
 
-  // The tokenizer is called on blocks to determine if there is an admonition
-  // present and create tags for it
-  function blockTokenizer(this: any, eat: any, value: string, silent: boolean) {
-    // Stop if no match or match does not start at beginning of line
-    const match = regex.exec(value);
-    if (!match || match.index !== 0) {
-      return false;
-    }
-    // If silent return the match
-    if (silent) {
-      return true;
-    }
+const plugin: Plugin<Partial<AdmonitionOptions>[], Root> = function plugin(
+  this,
+  optionsInput = {},
+): Transformer<Root> {
+  const {keywords} = normalizeAdmonitionOptions(optionsInput);
 
-    const now = eat.now();
-    const [opening, keyword, title] = match as string[] as [
-      string,
-      string,
-      string,
-    ];
-    const food = [];
-    const content = [];
+  return async (root) => {
+    const {visit} = await import('unist-util-visit');
 
-    let newValue = value;
-    // consume lines until a closing tag
-    let idx = newValue.indexOf(NEWLINE);
-    while (idx !== -1) {
-      // grab this line and eat it
-      const next = newValue.indexOf(NEWLINE, idx + 1);
-      const line =
-        next !== -1 ? newValue.slice(idx + 1, next) : newValue.slice(idx + 1);
-      food.push(line);
-      newValue = newValue.slice(idx + 1);
-      // the closing tag is NOT part of the content
-      if (line.startsWith(options.tag)) {
-        break;
-      }
-      content.push(line);
-      idx = newValue.indexOf(NEWLINE);
-    }
+    visit(root, (node) => {
+      if (node.type === 'containerDirective') {
+        const isAdmonition = keywords.includes(node.name);
 
-    // consume the processed tag and replace escape sequences
-    const contentString = content.join(NEWLINE).replace(escapeTag, options.tag);
-    const add = eat(opening + food.join(NEWLINE));
+        if (!isAdmonition) {
+          return;
+        }
 
-    // parse the content in block mode
-    const exit = this.enterBlock();
-    const contentNodes = this.tokenizeBlock(contentString, now);
-    exit();
+        const {directiveLabel, contentNodes} = parseDirective(node);
 
-    const titleNodes = this.tokenizeInline(title, now);
+        const textOnlyTitle =
+          node.attributes?.title ??
+          (directiveLabel ? getTextOnlyTitle(directiveLabel) : undefined);
 
-    const isSimpleTextTitle =
-      titleNodes.length === 1 && titleNodes[0].type === 'text';
-
-    const element = {
-      type: admonitionNodeType,
-      data: {
-        // hName/hProperties come from HAST
+        // Transform the mdast directive node to a hast admonition node
         // See https://github.com/syntax-tree/mdast-util-to-hast#fields-on-nodes
-        hName: 'admonition',
-        hProperties: {
-          ...(title && isSimpleTextTitle && {title}),
-          type: keyword,
-        },
-      },
-      children: [
-        // For titles containing MDX syntax: create a custom element. The theme
-        // component will extract it and render it nicely.
-        //
-        // Temporary workaround, because it's complex in MDX v1 to emit
-        // interpolated JSX prop syntax (title={<>my <code>title</code></>}).
-        // For this reason, we use children instead of the title prop.
-        title &&
-          !isSimpleTextTitle && {
-            type: admonitionNodeType,
+        // TODO in MDX v2 we should transform the whole directive to
+        // mdxJsxFlowElement instead of using hast
+        node.data = {
+          hName: 'admonition',
+          hProperties: {
+            ...(textOnlyTitle && {title: textOnlyTitle}),
+            type: node.name,
+          },
+        };
+        node.children = contentNodes;
+
+        // TODO legacy MDX v1 <mdxAdmonitionTitle> workaround
+        // v1: not possible to inject complex JSX elements as props
+        // v2: now possible: use a mdxJsxFlowElement element
+        if (directiveLabel && !textOnlyTitle) {
+          const complexTitleNode = {
+            type: 'mdxAdmonitionTitle',
             data: {
               hName: 'mdxAdmonitionTitle',
               hProperties: {},
             },
-            children: titleNodes,
-          },
-        ...contentNodes,
-      ].filter(Boolean),
-    };
-
-    return add(element);
-  }
-
-  // add tokenizer to parser after fenced code blocks
-  const Parser = this.Parser.prototype;
-  Parser.blockTokenizers.admonition = blockTokenizer;
-  Parser.blockMethods.splice(
-    Parser.blockMethods.indexOf('fencedCode') + 1,
-    0,
-    'admonition',
-  );
-  Parser.interruptParagraph.splice(
-    Parser.interruptParagraph.indexOf('fencedCode') + 1,
-    0,
-    ['admonition'],
-  );
-  Parser.interruptList.splice(
-    Parser.interruptList.indexOf('fencedCode') + 1,
-    0,
-    ['admonition'],
-  );
-  Parser.interruptBlockquote.splice(
-    Parser.interruptBlockquote.indexOf('fencedCode') + 1,
-    0,
-    ['admonition'],
-  );
-
-  return (root) => {
-    // escape everything except admonitionHTML nodes
-    visit(
-      root,
-      (node: unknown): node is Literal =>
-        (node as Literal | undefined)?.type !== admonitionNodeType,
-      (node: Literal) => {
-        if (node.value) {
-          node.value = node.value.replace(escapeTag, options.tag);
+            children: directiveLabel.children,
+          };
+          // @ts-expect-error: invented node type
+          node.children.unshift(complexTitleNode);
         }
-      },
-    );
+      }
+    });
   };
 };
 

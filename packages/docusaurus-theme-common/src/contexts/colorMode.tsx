@@ -41,7 +41,7 @@ const ColorModes = {
   dark: 'dark',
 } as const;
 
-export type ColorMode = typeof ColorModes[keyof typeof ColorModes];
+export type ColorMode = (typeof ColorModes)[keyof typeof ColorModes];
 
 // Ensure to always return a valid colorMode even if input is invalid
 const coerceToColorMode = (colorMode?: string | null): ColorMode =>
@@ -181,7 +181,7 @@ export function ColorModeProvider({
   children,
 }: {
   children: ReactNode;
-}): JSX.Element {
+}): ReactNode {
   const value = useContextValue();
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

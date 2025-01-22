@@ -41,14 +41,16 @@ function AdmonitionHeading({icon, title}: Pick<Props, 'icon' | 'title'>) {
 }
 
 function AdmonitionContent({children}: Pick<Props, 'children'>) {
-  return <div className={styles.admonitionContent}>{children}</div>;
+  return children ? (
+    <div className={styles.admonitionContent}>{children}</div>
+  ) : null;
 }
 
-export default function AdmonitionLayout(props: Props): JSX.Element {
+export default function AdmonitionLayout(props: Props): ReactNode {
   const {type, icon, title, children, className} = props;
   return (
     <AdmonitionContainer type={type} className={className}>
-      <AdmonitionHeading title={title} icon={icon} />
+      {title || icon ? <AdmonitionHeading title={title} icon={icon} /> : null}
       <AdmonitionContent>{children}</AdmonitionContent>
     </AdmonitionContainer>
   );
