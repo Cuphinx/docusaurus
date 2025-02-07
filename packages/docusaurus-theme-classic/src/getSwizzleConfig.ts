@@ -19,13 +19,6 @@ export default function getSwizzleConfig(): SwizzleConfig {
         },
         description: 'The folder containing all admonition icons',
       },
-      'Admonition/Icon/Caution': {
-        actions: {
-          eject: 'safe',
-          wrap: 'safe',
-        },
-        description: 'The admonition caution icon',
-      },
       'Admonition/Icon/Danger': {
         actions: {
           eject: 'safe',
@@ -53,6 +46,13 @@ export default function getSwizzleConfig(): SwizzleConfig {
           wrap: 'safe',
         },
         description: 'The admonition tip icon',
+      },
+      'Admonition/Icon/Warning': {
+        actions: {
+          eject: 'safe',
+          wrap: 'safe',
+        },
+        description: 'The admonition warning icon',
       },
       'Admonition/Layout': {
         actions: {
@@ -110,6 +110,14 @@ export default function getSwizzleConfig(): SwizzleConfig {
         description:
           'The component responsible for rendering a :::tip admonition type',
       },
+      'Admonition/Type/Warning': {
+        actions: {
+          eject: 'safe',
+          wrap: 'safe',
+        },
+        description:
+          'The component responsible for rendering a :::warning admonition type',
+      },
       'Admonition/Types': {
         actions: {
           eject: 'safe',
@@ -118,6 +126,27 @@ export default function getSwizzleConfig(): SwizzleConfig {
         },
         description:
           'The object mapping admonition type to a React component.\nUse it to add custom admonition type components, or replace existing ones.\nCan be ejected or wrapped (only manually, see our documentation).',
+      },
+      Blog: {
+        actions: {
+          // Forbidden because it's a parent folder, makes the CLI crash atm
+          eject: 'forbidden',
+          wrap: 'forbidden',
+        },
+      },
+      'Blog/Components': {
+        actions: {
+          // Forbidden because it's a parent folder, makes the CLI crash atm
+          eject: 'forbidden',
+          wrap: 'forbidden',
+        },
+      },
+      'Blog/Pages': {
+        actions: {
+          // Forbidden because it's a parent folder, makes the CLI crash atm
+          eject: 'forbidden',
+          wrap: 'forbidden',
+        },
       },
       CodeBlock: {
         actions: {
@@ -142,6 +171,14 @@ export default function getSwizzleConfig(): SwizzleConfig {
         },
         description:
           'The color mode toggle to switch between light and dark mode.',
+      },
+      'DocBreadcrumbs/Items': {
+        actions: {
+          eject: 'unsafe',
+          wrap: 'forbidden', // Can't wrap a folder
+        },
+        description:
+          'The components responsible for rendering the breadcrumb items',
       },
       DocCardList: {
         actions: {
@@ -174,7 +211,7 @@ export default function getSwizzleConfig(): SwizzleConfig {
           eject: 'safe',
           wrap: 'safe',
         },
-        description: "The footer component of you site's layout",
+        description: "The footer component of your site's layout",
       },
       'Footer/Copyright': {
         actions: {
@@ -273,6 +310,17 @@ export default function getSwizzleConfig(): SwizzleConfig {
         },
         description: 'The menu icon component',
       },
+      'Icon/Socials': {
+        actions: {
+          // Forbidden because it's a parent folder, makes the CLI crash atm
+          // TODO the CLI should rather support --eject
+          // Subfolders can be swizzled
+          eject: 'forbidden',
+          wrap: 'forbidden',
+        },
+        description:
+          'The Icon/Socials folder is not directly swizzle-able, but you can swizzle its sub-components.',
+      },
       MDXComponents: {
         actions: {
           eject: 'safe',
@@ -303,14 +351,6 @@ export default function getSwizzleConfig(): SwizzleConfig {
           wrap: 'safe',
         },
         description: 'The component used to render <details> tags in MDX',
-      },
-      'MDXComponents/Head': {
-        actions: {
-          eject: 'forbidden',
-          wrap: 'forbidden',
-        },
-        description:
-          'Technical component used to assign metadata (generally for SEO purpose) to the current MDX document',
       },
       'MDXComponents/Heading': {
         actions: {
